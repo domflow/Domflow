@@ -686,226 +686,6 @@ const dotPipe = {
         }
     },
 
-    // runInline: async function (key) {
-    //     const entry = this.matrix[key];
-    //     if (!entry || !entry.inlineMacro) return;
-
-    //     if (!Array.isArray(entry.matrix)) entry.matrix = [];
-    //     if (!entry.dpVars) entry.dpVars = {};
-
-    //     let currentValue = null;
-    //     const segments = entry.inlineMacro.split('|').filter(s => s.trim() !== '');
-
-    //     for (let seg of segments) {
-    //         seg = seg.trim();
-    //         let m;
-
-    //         if (seg.startsWith('exc:')) {
-    //             const arg = seg.slice(4).trim(); // 'this' or a variable name
-
-    //             // Determine what to push into the pipeline
-    //             const tag = arg === "this" ? entry.element : entry.dpVars[arg];
-
-    //             if (!tag) {
-    //                 console.warn(`exc: could not find element for "${arg}"`);
-    //                 continue;
-    //             }
-
-    //             // Store in dpVars and matrix so pipes can access it
-    //             entry.dpVars = entry.dpVars || {};
-    //             entry.dpVars[arg] = tag;
-    //             entry.matrix = entry.matrix || [];
-    //             entry.matrix.push(tag);
-
-    //             // Push into the pipeline
-    //             currentValue = await pipes(tag); // assuming pipes() is async
-    //             continue;
-    //         }
-
-    //         if (m = /^\+\s*([a-zA-Z0-9_\-]+):([a-zA-Z0-9_]+)/.exec(seg)) {
-    //             const targetId = m[1];
-    //             const shellName = m[2];
-    //             const shellKey = `${targetId}:${shellName}`;
-
-    //             entry.shells = entry.shells || {};
-    //             if (!entry.shells[shellKey]) {
-    //                 entry.shells[shellKey] = { dpVars: {}, matrix: [], element: document.getElementById(targetId) || entry.element };
-    //             }
-
-    //             // Run shell async in its own promise
-    //             (async () => {
-    //                 currentShell = entry.shells[shellKey];
-    //                 await runShell(entry.shells[shellKey]); // function that executes segments inside shell
-    //                 currentShell = null; // return to parent
-    //             })();
-    //             continue;
-    //         }
-
-
-    //         // Stop/close a shell
-    //         if (m = /^\-\s*([a-zA-Z0-9_]+)/.exec(seg)) {
-    //             const shellName = m[1];
-    //             // find shellKey that matches this element + shellName
-    //             const shellKey = Object.keys(entry.shells || {}).find(k => k.endsWith(`:${shellName}`));
-    //             if (shellKey && entry.shells[shellKey]) {
-    //                 // Optionally merge vars back
-    //                 Object.assign(entry.dpVars, entry.shells[shellKey].dpVars);
-    //                 delete entry.shells[shellKey];
-    //                 currentShell = null; // back to parent
-    //             }
-    //             continue;
-    //         }
-
-    //         // --- Literal assignment &varName:value
-    //         if (m = /^\&([a-zA-Z0-9_]+):(.+)$/.exec(seg)) {
-    //             const varName = m[1];
-    //             const value = m[2];
-    //             entry.dpVars[varName] = value;
-    //             currentValue = value;
-    //             continue;
-    //         }
-
-    //         // --- NOP assignment nop:varName
-    //         if (m = /^nop:([a-zA-Z0-9_]+)$/.exec(seg)) {
-    //             const varName = m[1];
-    //             entry.dpVars[varName] = currentValue;
-    //             continue;
-    //         }
-
-    //         if (seg.startsWith("$")) {
-    //             const m = /^\$([a-zA-Z0-9_\-]+)(?:\.([a-zA-Z0-9_.]+))?:(.+)$/.exec(seg);
-    //             if (m) {
-    //                 const targetId = m[1];
-    //                 const propPath = m[2] || "innerHTML";
-    //                 let val = m[3];
-
-    //                 // Resolve !varName references
-    //                 if (val != null && val.startsWith("!")) {
-    //                     const parts = val.slice(1).split('.');
-    //                     val = entry.dpVars;
-    //                     for (let part of parts) {
-    //                         if (val == null) break;
-    //                         val = val[part];
-    //                     }
-    //                 }
-
-    //                 const targetEl = document.getElementById(targetId);
-    //                 if (targetEl) {
-    //                     const props = propPath.split(".");
-    //                     let obj = targetEl;
-    //                     for (let i = 0; i < props.length - 1; i++) {
-    //                         if (!obj[props[i]]) { obj = null; break; }
-    //                         obj = obj[props[i]];
-    //                     }
-    //                     if (obj) {
-    //                         const lastProp = props[props.length - 1];
-    //                         obj[lastProp] = val;
-
-    //                         // Ensure entry.matrix exists
-    //                         if (!Array.isArray(entry.matrix)) entry.matrix = [];
-    //                         entry.matrix.push(val); // push value, not element
-    //                     }
-    //                 }
-    //             }
-    //             continue;
-    //         }
-
-    //         // --- DOM property read #varName:id.prop
-    //         if (m = /^#([a-zA-Z0-9_]+):([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_]+)$/.exec(seg)) {
-    //             const varName = m[1];
-    //             const targetEl = document.getElementById(m[2]);
-    //             const prop = m[3];
-    //             if (targetEl) {
-    //                 entry.dpVars[varName] = targetEl[prop];
-    //                 currentValue = entry.dpVars[varName];
-    //             }
-    //             continue;
-    //         }
-
-    //         // --- Function call %funcName:[args]
-    //         if (m = /^\%([a-zA-Z0-9_]+):\[(.+)\]$/.exec(seg)) {
-    //             const funcName = m[1];
-    //             let args = m[2].split(',').map(a => a.trim()).map(arg => {
-    //                 if (arg.startsWith('!')) return entry.dpVars[arg.slice(1)];
-    //                 if (arg.startsWith('#')) return entry.dpVars[arg.slice(1)];
-    //                 if (arg.startsWith('@')) {
-    //                     const [elId, prop] = arg.slice(1).split('.');
-    //                     const targetEl = document.getElementById(elId);
-    //                     return targetEl ? targetEl[prop] : undefined;
-    //                 }
-    //                 return arg;
-    //             });
-    //             if (typeof window[funcName] === 'function') {
-    //                 currentValue = await window[funcName](...args);
-    //             }
-    //             continue;
-    //         }
-
-    //         // --- modala: url:targetId[:method]
-    //         if (seg.toLowerCase().startsWith("modala:")) {
-    //             const parts = seg.split(":").map(s => s.trim());
-    //             const [_, url, targetId, method = "GET"] = parts;
-
-    //             try {
-    //                 const res = await fetch(url, { method });
-    //                 const json = await res.json();
-    //                 const container = document.getElementById(targetId);
-    //                 modala(json, container); // render children
-    //                 // return HTML string instead of element
-    //             } catch (err) {
-    //                 console.error("dotPipe modala error:", err);
-    //             }
-    //             continue;
-    //         }
-
-    //         if (m = /^\+\s*([a-zA-Z0-9_]+)/.exec(seg)) {
-    //             const shellName = m[1];
-    //             // create a new shell object
-    //             entry.shells = entry.shells || {};
-    //             entry.shells[shellName] = {
-    //                 dpVars: {},
-    //                 matrix: [],
-    //                 parent: currentShell // optional reference to parent
-    //             };
-    //             currentShell = entry.shells[shellName]; // now all !var references go here
-    //             continue;
-    //         }
-
-    //         if (m = /^\-\s*(timer[0-9]+)/.exec(seg)) {
-    //             const timerId = m[1];
-    //             // stop the shell/timer
-    //             if (entry.timers && entry.timers[timerId]) {
-    //                 clearTimeout(entry.timers[timerId]);
-    //                 delete entry.timers[timerId];
-    //             }
-
-    //             // Optional: pop shell scope
-    //             if (currentShell && currentShell.name === timerId) {
-    //                 currentShell = currentShell.parent || null;
-    //             }
-
-    //             continue;
-    //         }
-
-    //         // --- Standard verb verbName:param1:param2
-    //         if (m = /^([a-zA-Z0-9_]+):?(.*)$/.exec(seg)) {
-    //             const verb = m[1];
-    //             const params = m[2] ? m[2].split(':') : [];
-
-    //             const resolvedParams = params.map(p => {
-    //                 if (p.startsWith('!')) return entry.dpVars[p.slice(1)];
-    //                 return p;
-    //             });
-
-    //             if (typeof this.verbs[verb] === 'function') {
-    //                 currentValue = await this.verbs[verb](...resolvedParams);
-    //             }
-    //             continue;
-    //         }
-
-    //         console.warn("Unknown pipe segment:", seg);
-    //     }
-    // },
     // Built-in verbs (AJAX, log, etc.)
     verbs: {
         async ajax(url, method = 'GET') {
@@ -959,7 +739,8 @@ let domContentLoad = (again = false) => {
     // Process CSV tags
     processCsvTags();
     processLoginTags();
-    processTabTags();
+    // processTabTags();
+    document.querySelectorAll("tabs").forEach(tabsEl => handleTabs(tabsEl));
     processCartTags();
     processOrderConfirmationTags();
     processColumnsTags();
@@ -1038,7 +819,92 @@ let domContentLoad = (again = false) => {
     });
 }
 
+function handleTabs(tabsEl) {
+    const spec = (tabsEl.getAttribute('tab') || '').trim();
+    if (!spec) return;
 
+    const tabsData = spec.split(';').map(s => s.trim()).filter(Boolean);
+
+    function makeId(raw) {
+        let id = (raw || '').trim();
+        if (!id) id = 'tab-' + Math.random().toString(36).slice(2, 8);
+        id = id.replace(/\s+/g, '-').replace(/[^A-Za-z0-9\-_]/g, '');
+        let base = id, i = 1;
+        while (tabsEl.querySelector(`#${id}`)) { id = base + '-' + (i++); }
+        return id;
+    }
+
+    tabsEl.classList.add('dp-tabs');
+    tabsEl.innerHTML = '';
+
+    // header and content wrappers
+    const headerWrapper = document.createElement('div');
+    headerWrapper.className = 'tabs-header';
+    tabsEl.appendChild(headerWrapper);
+
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'tabs-content';
+    tabsEl.appendChild(contentWrapper);
+
+    const tabMap = [];
+
+    // create each tab
+    tabsData.forEach((tabSpec, idx) => {
+        const parts = tabSpec.split(':').map(p => p.trim());
+        const label = parts[0] || `Tab ${idx + 1}`;
+        const rawId = parts[1] || label;
+        const src = parts[2] || '';
+
+        const id = makeId(rawId);
+        tabMap.push({ id, src });
+
+        // header
+        const header = document.createElement('button');
+        header.type = 'button';
+        header.className = 'tab-header' + (idx === 0 ? ' active' : '');
+        header.textContent = label;
+        header.dataset.tab = id;
+        headerWrapper.appendChild(header);
+
+        // content
+        const content = document.createElement('div');
+        content.className = 'tab-content' + (idx === 0 ? ' active' : '');
+        content.id = id;
+        content.dataset.srcLoaded = ''; // track if we loaded content yet
+        contentWrapper.appendChild(content);
+
+        // optionally pre-load first tab
+        if (idx === 0 && src) {
+            content.innerHTML = '<div class="tab-loading">Loading…</div>';
+            fetch(src).then(r => r.text())
+                .then(html => { content.innerHTML = html; content.dataset.srcLoaded = src; })
+                .catch(err => { content.innerHTML = `<div class="tab-error">Error: ${err.message}</div>`; });
+        }
+    });
+
+    // click handler
+    headerWrapper.addEventListener('click', (ev) => {
+        const clicked = ev.target.closest('.tab-header');
+        if (!clicked) return;
+        const id = clicked.dataset.tab;
+
+        headerWrapper.querySelectorAll('.tab-header').forEach(h => h.classList.remove('active'));
+        contentWrapper.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        clicked.classList.add('active');
+        const target = contentWrapper.querySelector(`#${CSS.escape(id)}`);
+        if (target) {
+            target.classList.add('active');
+            const tabInfo = tabMap.find(t => t.id === id);
+            if (tabInfo && tabInfo.src && target.dataset.srcLoaded !== tabInfo.src) {
+                target.innerHTML = '<div class="tab-loading">Loading…</div>';
+                fetch(tabInfo.src).then(r => r.text())
+                    .then(html => { target.innerHTML = html; target.dataset.srcLoaded = tabInfo.src; })
+                    .catch(err => { target.innerHTML = `<div class="tab-error">Error: ${err.message}</div>`; });
+            }
+        }
+    });
+}
 /**
  * Process all columns tags in the document
  */
@@ -5355,223 +5221,250 @@ function escapeHtml(html) {
     return p.innerHTML;
 }
 
-/**
- * 
- * @param {JSON Object} value 
- * @param {string} tempTag 
- * @param {} root 
- * @param {*} id 
- * @returns HTML Object
- */
-function modala(value, tempTag, root, id) {
-    if (typeof (tempTag) == "string") {
-        tempTag = document.getElementById(tempTag);
-    }
-    if (root === undefined)
-        root = tempTag;
-    if (tempTag == undefined) {
-        return;
-    }
-    if (value == undefined) {
-        // console.log(tempTag + "******");
-        console.error("value of reference incorrect");
+/* PATCH: Drop these helpers ABOVE modala(), then REPLACE your modala() with the patched version below. */
+
+/* Small helpers for attribute handling */
+function isPlainObject(x) { return x && typeof x === 'object' && !Array.isArray(x); }
+function isNumericKey(k) { return /^\d+$/.test(String(k)); }
+
+/* Merge-aware class handling */
+function mergeClass(base, add) {
+    const set = new Set(String(base || '').split(/\s+/).filter(Boolean));
+    String(add || '').split(/\s+/).filter(Boolean).forEach(c => set.add(c));
+    return Array.from(set).join(' ');
+}
+
+/* Parse and serialize style rules for merge behavior */
+function parseStyle(styleText) {
+    const out = {};
+    String(styleText || '').split(';').map(s => s.trim()).filter(Boolean).forEach(rule => {
+        const idx = rule.indexOf(':'); if (idx === -1) return;
+        const k = rule.slice(0, idx).trim();
+        const v = rule.slice(idx + 1).trim();
+        if (k) out[k] = v;
+    });
+    return out;
+}
+function serializeStyle(obj) {
+    return Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join('; ');
+}
+
+/* Set a single attribute with merge-awareness for class/style */
+function setOneAttribute(elem, key, value) {
+    if (value == null) return;
+
+    if (key.toLowerCase() === 'class') {
+        elem.className = mergeClass(elem.className, value);
         return;
     }
 
-    var temp = document.createElement(value["tagname"]);
-    if (value["tagname"] === null | "undefined") {
-        temp.tagName = "div";
-        temp = document.createElement("div");
+    if (key.toLowerCase() === 'style') {
+        const base = parseStyle(elem.getAttribute('style'));
+        const add = parseStyle(value);
+        Object.assign(base, add);
+        const ser = serializeStyle(base);
+        if (ser) elem.setAttribute('style', ser); else elem.removeAttribute('style');
+        return;
     }
-    else if (value["tagName"]) {
-        temp.tagName = value["tagName"];
-        temp = document.createElement(value["tagName"]);
+
+    // Generic attribute
+    elem.setAttribute(key, String(value));
+}
+
+/* Apply many attributes from an object { id, class, style, data-*, ... } */
+function setAttributesFromObject(elem, attrs) {
+    if (!isPlainObject(attrs)) return;
+    for (const [k, v] of Object.entries(attrs)) {
+        setOneAttribute(elem, k, v);
     }
-    if (value["header"] !== undefined && value["header"] instanceof Object) {
+}
+
+/* Reserve keys that are NOT attributes (content, type-handlers, structure) */
+function isReservedKey(k) {
+    const lk = String(k).toLowerCase();
+    return (
+        lk === 'tagname' ||
+        lk === 'textcontent' ||
+        lk === 'innerhtml' ||
+        lk === 'innertext' ||
+        lk === 'header' ||
+        lk === 'buttons' ||
+        lk === 'select' ||
+        lk === 'options' ||
+        lk === 'sources' ||
+        lk === 'css' ||
+        lk === 'js' ||
+        lk === 'modal' ||
+        lk === 'html' ||
+        lk === 'php' ||
+        lk === 'boxes' ||
+        lk === 'style' ||   // handled via setOneAttribute
+        lk === 'class'      // handled via setOneAttribute
+    );
+}
+function applyAttributesObject(elem, attrs){
+  if (!attrs || typeof attrs !== 'object' || Array.isArray(attrs)) return;
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === true) elem.setAttribute(k, ''); // boolean attribs
+    else if (v !== false && v != null) elem.setAttribute(k, String(v));
+  }
+}
+
+/* IMPORTANT: REPLACE your modala(...) function with this version. 
+   It supports:
+   - Base-level attributes: { id, class, style, data-*, aria-*, ... }
+   - Nested attributes object: attributes: { id, class, style, ... }
+   - Numeric children keys ("0", "1", ...) are treated as child nodes appended inside the current element
+*/
+function modala(value, tempTag, root, id) {
+    if (typeof tempTag === "string") {
+        tempTag = document.getElementById(tempTag);
+    }
+    if (root === undefined) root = tempTag;
+    if (!tempTag) return;
+    if (!value) { console.error("modala: value is undefined for", tempTag); return; }
+
+    // Create element
+    const tag = value["tagname"] || value["tagName"];
+    if (!tag) { console.error("modala: missing tagname in", value); return; }
+    let elem = document.createElement(tag);
+
+    // Optional: header block (head assets)
+    if (isPlainObject(value["header"])) {
         modalaHead(value["header"], "head", root, null);
+        // Optional additional CSP meta (kept from your original)
         var meta = document.createElement("meta");
         meta.content = "script-src-elem 'self'; img-src 'self'; style-src 'self'; child-src 'none'; object-src 'none'";
         meta.httpEquiv = "Content-Security-Policy";
         document.head.appendChild(meta);
     }
-    Object.entries(value).forEach((nest) => {
-        const [k, v] = nest;
-        if (k.toLowerCase() == "header");
-        else if (k.toLocaleLowerCase() == "buttons" && v instanceof Object) {
-            var buttons = document.createElement("div");
-            v.forEach(z => {
-                var button = document.createElement("input");
-                // console.log(z);
-                button.type = "button";
-                var keys = ["text", "value", "textcontent", "innerhtml", "innerText"];
-                Object.entries(z).forEach(x => {
-                    const [key, val] = x;
-                    // console.log(["text", "value", "textcontent", "innerhtml", "innertext"].includes(key.toLowerCase()));
-                    vals = escapeHtml(val);
-                    if (["text", "value", "textcontent", "innerhtml", "innertext"].includes(key.toLowerCase()))
-                        button.value = val;
-                    else
-                        button.setAttribute(key, val);
-                });
-                temp.appendChild(button);
-            });
-            // modala(v, tempTag, root, id);
-        }
-        else if (v instanceof Object)
-            modala(v, tempTag, root, id);
-        else if (v instanceof Object)
-            modala(v, tempTag, root, id);
-        else if (k.toLowerCase() == "br") {
-            let brs = v;
-            while (brs) {
-                temp.appendChild(document.createElement("br"));
-                brs--;
-            }
-        }
-        else if (k.toLowerCase() == "select") {
-            var select = document.createElement("select");
-            temp.appendChild(select);
-            modala(v, temp, root, id);
-        }
-        else if (k.toLowerCase() == "options" && temp.tagName.toLowerCase() == "select") {
-            var optsArray = v.split(";");
-            var options = null;
-            // console.log(v)
-            optsArray.forEach((e, f) => {
-                var g = e.split(":");
-                options = document.createElement("option");
-                options.setAttribute("value", g[1]);
-                options.textContent = (g[0]);
-                temp.appendChild(options);
-            });
-            temp.appendChild(options);
-            // console.log("*")
-        }
-        else if (k.toLowerCase() == "sources" && (temp.tagName.toLowerCase() == "card" || temp.tagName.toLowerCase() == "carousel")) {
-            // console.log(value);
-            var optsArray = v.split(";");
-            var options = null;
-            var i = (value['index'] == undefined) ? 0 : value['index'];
-            temp.id = value['id'];
-            optsArray.forEach((e, f) => {
-                if (value['boxes'] == temp.childElementCount)
-                    return;
-                if (value['type'] == "img") {
-                    var gth = document.createElement("img");
-                    gth.src = e;
-                    gth.width = value['width'];
-                    gth.height = value['height'];
-                    gth.style.display = "hidden";
-                    temp.setAttribute("sources", value['sources'])
-                    temp.appendChild(gth);
-                }
-                else if (value['type'] == "audio") {
-                    var gth = document.createElement("source");
-                    gth.src = e;
-                    gth.width = value['width'];
-                    gth.height = value['height'];
-                    while (e.substr(-i, 1) != '.') i++;
-                    gth.type = "audio/" + e.substring(-(i - 1));
-                    gth.controls = (values['controls'] != undefined && value['controls'] != false) ? true : false;
-                    temp.appendChild(gth);
-                }
-                else if (value['type'] == "video") {
-                    var gth = document.createElement("source");
-                    gth.src = e;
-                    gth.width = value['width'];
-                    gth.height = value['height'];
-                    gth.style.display = "hidden";
-                    var i = 0;
-                    while (e.substr(-i, 1) != '.') i++;
-                    gth.type = "video/" + e.substring(-(i - 1));
-                    gth.controls = (values['controls'] != undefined && value['controls'] != false) ? true : false;
-                    temp.appendChild(gth);
-                }
-                else if (value['type'] == "modal") {
-                    modalList(v)
-                }
-                else if (value['type'] == "html") {
-                    // console.log(e);
-                    fetch(e)
-                        .then(response => response.text())
-                        .then(data => {
-                            var div = document.createElement("div");
-                            div.innerHTML = data;
-                            tempTag.appendChild(div);
-                        });
-                }
-                else if (value['type'] == "php") {
-                    // console.log(e);
-                    fetch(e)
-                        .then(response => response.text())
-                        .then(data => {
-                            var div = document.createElement("div");
-                            div.innerHTML = data;
-                            tempTag.appendChild(div);
-                        });
-                }
-            });
+    
+    if (value && value.attributes && typeof value.attributes === 'object' && !Array.isArray(value.attributes)) {
+        applyAttributesObject(elem, value.attributes); // apply to the created element
+    }
 
-        }
-        else if (k.toLowerCase() == "css") {
-            var cssvar = document.createElement("link");
-            cssvar.href = v;
-            cssvar.rel = "stylesheet";
-            tempTag.appendChild(cssvar);
-        }
-        else if (k.toLowerCase() == "js") {
-            var js = document.createElement("script");
-            js.src = v;
-            js.setAttribute("defer", "true");
-            tempTag.appendChild(js);
-        }
-        else if (k.toLowerCase()[0] == "h" && k.length == 2) {
-            var h = document.createElement(k);
-            h.innerText = v;
-            tempTag.appendChild(h);
-        }
-        else if (k.toLowerCase() == "modal") {
-            modalList(v)
-        }
-        else if (k.toLowerCase() == "html") {
-            fetch(v)
-                .then(response => response.text())
-                .then(data => {
-                    var div = document.createElement("div");
-                    div.innerHTML = data;
-                    tempTag.appendChild(div);
-                });
-        }
-        else if (k.toLowerCase() == "php") {
-            fetch(v)
-                .then(response => response.text())
-                .then(data => {
-                    var div = document.createElement("div");
-                    div.innerHTML = data;
-                    tempTag.appendChild(div);
-                });
-        }
-        else if (k.toLowerCase() == "boxes") {
-            // console.log(v);
-            temp.setAttribute("boxes", v);
-        }
-        else if (!Number(k) && k.toLowerCase() != "tagname" && k.toLowerCase() != "textcontent" && k.toLowerCase() != "innerhtml" && k.toLowerCase() != "innertext") {
-            try {
-                temp.setAttribute(k, v);
+    // 1) First pass: apply base-level attributes (id/class/style/any-attr except reserved)
+    //    Also consume nested attributes:{} if present.
+    //    Content (textContent/innerHTML/innerText) is applied after this pass.
+    const nestedAttrs = isPlainObject(value["attributes"]) ? value["attributes"] : null;
+
+    // Merge nested attributes first (lower precedence) so direct attributes can override
+    // if (nestedAttrs) setAttributesFromObject(elem, nestedAttrs);
+
+    // Apply other non-reserved, non-numeric keys as attributes
+    for (const [k, v] of Object.entries(value)) {
+        // Skip numeric children, reserved keys, header, and attributes{} block (already handled)
+        if (isNumericKey(k)) continue;
+        if (k === "attributes" || k === "header") continue;
+        if (isReservedKey(k)) continue;
+
+        // All other keys are attributes; merge-aware for class/style
+        setOneAttribute(elem, k, v);
+    }
+
+    // 2) Handle special single-value content keys (applied after attributes)
+    if (value.hasOwnProperty("textContent")) {
+        elem.textContent = String(value.textContent).replace(/\r?\n/g, "\n");
+    } else if (value.hasOwnProperty("innerHTML")) {
+        elem.innerHTML = String(value.innerHTML);
+    } else if (value.hasOwnProperty("innerText")) {
+        elem.innerText = String(value.innerText);
+    }
+
+    // 3) Special handlers preserved from your original implementation
+    // buttons (array of button specs → <input type="button"> list)
+    if (Array.isArray(value["buttons"])) {
+        const wrap = document.createElement("div");
+        value["buttons"].forEach(btnSpec => {
+            const b = document.createElement("input");
+            b.type = "button";
+            for (const [bk, bv] of Object.entries(btnSpec)) {
+                if (["text", "value", "textcontent", "innerhtml", "innertext"].includes(String(bk).toLowerCase())) {
+                    b.value = bv;
+                } else {
+                    setOneAttribute(b, bk, bv);
+                }
             }
-            catch (e) {
-                console.error(`Error setting attribute ${k}:`, e);
+            wrap.appendChild(b);
+        });
+        elem.appendChild(wrap);
+    }
+
+    // select/options (simple string k:v;k2:v2)
+    if (value["select"]) {
+        const sel = document.createElement("select");
+        elem.appendChild(sel);
+        modala(value["select"], sel, root, id);
+    }
+    if (value["options"] && elem.tagName.toLowerCase() === "select") {
+        const optsArray = String(value["options"]).split(";");
+        optsArray.forEach(line => {
+            const [label, val] = line.split(":");
+            if (!label) return;
+            const opt = document.createElement("option");
+            opt.value = (val ?? label).trim();
+            opt.textContent = label.trim();
+            elem.appendChild(opt);
+        });
+    }
+
+    // sources handling for carousel/card (kept logic but simplified)
+    if (value["sources"] && (elem.tagName.toLowerCase() === "card" || elem.tagName.toLowerCase() === "carousel")) {
+        const items = String(value["sources"]).split(";");
+        const type = (value['type'] || '').toLowerCase();
+        const width = value['width'], height = value['height'];
+        items.forEach(src => {
+            if (value['boxes'] && elem.childElementCount >= parseInt(value['boxes'])) return;
+            if (type === "img") {
+                const img = document.createElement("img");
+                img.src = src; if (width) img.width = width; if (height) img.height = height;
+                elem.appendChild(img);
+            } else if (type === "html" || type === "php") {
+                fetch(src).then(r => r.text()).then(html => {
+                    const div = document.createElement('div');
+                    div.innerHTML = html;
+                    elem.appendChild(div);
+                });
+            } else if (type === "modal") {
+                modalList(value["sources"]);
             }
+        });
+    }
+
+    // css/js refs inside body (light-weight support)
+    if (value["css"]) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet"; link.href = value["css"];
+        elem.appendChild(link);
+    }
+    if (value["js"]) {
+        const scr = document.createElement("script");
+        scr.defer = true; scr.src = value["js"];
+        elem.appendChild(scr);
+    }
+
+    // modal/html/php single-file loaders (inject as child content)
+    if (value["modal"]) { modalList(value["modal"]); }
+    if (value["html"]) {
+        fetch(value["html"]).then(r => r.text()).then(html => {
+            const div = document.createElement("div"); div.innerHTML = html; elem.appendChild(div);
+        });
+    }
+    if (value["php"]) {
+        fetch(value["php"]).then(r => r.text()).then(html => {
+            const div = document.createElement("div"); div.innerHTML = html; elem.appendChild(div);
+        });
+    }
+
+    // 4) Recurse numeric children ("0","1","2",...) INSIDE current element
+    for (const [k, v] of Object.entries(value)) {
+        if (isNumericKey(k) && isPlainObject(v)) {
+            modala(v, elem, root, id); // IMPORTANT: temp (elem) as parent so it nests properly
         }
-        else if (!Number(k) && k.toLowerCase() != "tagname" && (k.toLowerCase() == "textcontent" || k.toLowerCase() == "innerhtml" || k.toLowerCase() == "innertext")) {
-            const val = v.replace(/\r?\n/g, "<br>");
-            (k.toLowerCase() == "textcontent") ? temp.textContent = val : (k.toLowerCase() == "innerhtml") ? temp.innerHTML = val : temp.innerText = val;
-        }
-        else if (k.toLowerCase() == "style") {
-            temp.style.cssText = v;
-        }
-    });
-    tempTag.appendChild(temp);
+    }
+
+    // Finally append to parent, process, and return
+    tempTag.appendChild(elem);
     domContentLoad();
     return tempTag;
 }
@@ -5834,7 +5727,6 @@ function htmlToJson(htmlString) {
 // Helpers to track which elements have pipe listeners
 const pipeListenersSet = new WeakSet();
 function hasPipeListener(elem) { return pipeListenersSet.has(elem); }
-function markPipeListener(elem) { pipeListenersSet.add(elem); }
 
 function addPipe(rootElem = document) {
     // Global listeners for clicks or custom 'inline' events
@@ -5845,8 +5737,6 @@ function addPipe(rootElem = document) {
             // Only process elements that need it
             if ((target.classList.contains('mouse') || target.id !== null) && !hasPipeListener(target)) {
 
-                // Mark the element as processed for the listener
-                markPipeListener(target);
 
                 // 1️⃣ Run the standard pipe processing
                 await pipes(target);
@@ -5960,7 +5850,7 @@ function pipes(elem, stop = false) {
     //
     if (elem.inline == null && elem.id === null)
         return;
-
+    // include pipe (AJAX) — detect content type by extension
     if (elem.hasAttribute("callback") && typeof window[elem.getAttribute("callback")] === "function") {
         var params = [];
         const calls = sortNodesByName("." + elem.getAttribute("callback-class"));
